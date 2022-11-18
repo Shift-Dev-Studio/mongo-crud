@@ -1,0 +1,135 @@
+package mongocrud
+
+import (
+	// Standard
+	"context"
+	"errors"
+	"reflect"
+	"time"
+
+	// External
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var (
+	ErrorAlreadyExists = errors.New("item already exists")
+	ErrorInsertFailed  = errors.New("failed to insert")
+	ErrorGetFailed     = errors.New("failed to get")
+	ErrorDeleteFailed  = errors.New("failed to delete")
+	ErrorUpdateFailed  = errors.New("failed to update")
+
+	ErrorIdBlank = errors.New("id cannot be blank")
+
+	ErrorValueNotPointer = errors.New("failed to accept argument, must be a pointer")
+	ErrorValueNotStruct  = errors.New("failed to accept argument, must be a struct")
+)
+
+type DatabaseCollection struct {
+	collection mongoCollection
+}
+
+type mongoCollection interface {
+	InsertOne(context.Context, interface{}, ...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
+	FindOne(context.Context, interface{}, ...*options.FindOneOptions) *mongo.SingleResult
+	ReplaceOne(context.Context, interface{}, interface{}, ...*options.ReplaceOptions) (*mongo.UpdateResult, error)
+	DeleteOne(context.Context, interface{}, ...*options.DeleteOptions) (*mongo.DeleteResult, error)
+}
+
+//
+func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (interface{}, error) {
+	rv := reflect.ValueOf(i)
+
+	if rv.Kind() != reflect.Ptr {
+		return nil, ErrorValueNotPointer
+	}
+
+	tgt := rv.Elem()
+	if tgt.Kind() != reflect.Struct {
+		return nil, ErrorValueNotStruct
+	}
+
+	if tgt.FieldByName("Id").Interface().(primitive.ObjectID) == primitive.NilObjectID {
+		return nil, ErrorIdBlank
+	}
+
+	_, err := c.collection.InsertOne(ctx, tgt)
+	if err != nil {
+		return nil, ErrorInsertFailed
+	}
+
+	return c.GetItem(ctx, "id", tgt.FieldByName("Id").Interface().(primitive.ObjectID).Hex())
+}
+
+//
+func (c *DatabaseCollection) ItemExists(ctx context.Context, id primitive.ObjectID) bool {
+	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+
+	err := c.collection.FindOne(ctx, filter)
+	return err == nil
+}
+
+//
+func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (resp interface{}, err error) {
+	var filter primitive.D
+	switch by {
+	case "_id", "id":
+		objID, _ := primitive.ObjectIDFromHex(value)
+		filter = bson.D{{Key: by, Value: objID}}
+	default:
+		filter = bson.D{primitive.E{Key: by, Value: value}}
+	}
+
+	err = c.collection.FindOne(ctx, filter).Decode(&resp)
+	if err != nil {
+		return nil, ErrorGetFailed
+	}
+
+	return resp, nil
+}
+
+//
+func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (interface{}, error) {
+	rv := reflect.ValueOf(i)
+
+	if rv.Kind() != reflect.Ptr {
+		return nil, ErrorValueNotPointer
+	}
+
+	tgt := rv.Elem()
+	if tgt.Kind() != reflect.Struct {
+		return nil, ErrorValueNotStruct
+	}
+
+	if tgt.FieldByName("Id").Interface().(primitive.ObjectID) == primitive.NilObjectID {
+		return nil, ErrorIdBlank
+	}
+
+	id := tgt.FieldByName("Id").Interface().(primitive.ObjectID)
+
+	filter := bson.D{{Key: "_id", Value: id}}
+
+	_, err := c.collection.ReplaceOne(ctx, filter, i)
+	if err != nil {
+		return nil, ErrorUpdateFailed
+	}
+
+	return c.GetItem(ctx, "id", tgt.FieldByName("Id").Interface().(primitive.ObjectID).Hex())
+}
+
+//
+func (c *DatabaseCollection) DeleteItem(id primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	filter := bson.D{{Key: "_id", Value: id}}
+
+	_, err := c.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return ErrorDeleteFailed
+	}
+
+	return nil
+}
