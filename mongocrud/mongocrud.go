@@ -22,9 +22,10 @@ type DatabaseConfiguration struct {
 }
 
 type DatabaseClient struct {
-	Instance    *mongo.Client
-	database    *mongo.Database
-	collections []*DatabaseCollection
+	Instance *mongo.Client
+
+	Database    *mongo.Database
+	Collections []*DatabaseCollection
 
 	logger *zap.Logger
 }
@@ -73,18 +74,19 @@ func NewStorage(c *DatabaseConfiguration, l *zap.Logger) (*DatabaseClient, error
 	}
 
 	// MongoDB Database init
-	resp.database = resp.Instance.Database(c.DatabaseName)
+	resp.Database = resp.Instance.Database(c.DatabaseName)
 
 	// MongoDB Collections init
-	collectionStrings, err := resp.database.ListCollectionNames(ctx, bson.M{})
+	collectionStrings, err := resp.Database.ListCollectionNames(ctx, bson.M{})
 	if err != nil {
 		resp.logger.Warn("unable to get collection names")
 	}
 
 	for _, collection := range collectionStrings {
-		temp := resp.database.Collection(collection)
+		temp := resp.Database.Collection(collection)
 
-		resp.collections = append(resp.collections, &DatabaseCollection{
+		resp.Collections = append(resp.Collections, &DatabaseCollection{
+			name:       collection,
 			collection: temp,
 		})
 	}
@@ -113,7 +115,7 @@ func (s DatabaseClient) ListCollections() []string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collections, err := s.database.ListCollectionNames(ctx, bson.M{})
+	collections, err := s.Database.ListCollectionNames(ctx, bson.M{})
 	if err != nil {
 		s.logger.Warn("get collections failed",
 			zap.String("func", "ListCollections"),
@@ -122,4 +124,14 @@ func (s DatabaseClient) ListCollections() []string {
 	}
 
 	return collections
+}
+
+func (c *DatabaseClient) GetCollection(collectionName string) *DatabaseCollection {
+	for i := range c.Collections {
+		if c.Collections[i].name == collectionName {
+			return c.Collections[i]
+		}
+	}
+
+	return nil
 }

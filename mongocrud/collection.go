@@ -28,6 +28,7 @@ var (
 )
 
 type DatabaseCollection struct {
+	name       string
 	collection mongoCollection
 }
 
@@ -51,43 +52,44 @@ func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (interf
 		return nil, ErrorValueNotStruct
 	}
 
-	if tgt.FieldByName("Id").Interface().(primitive.ObjectID) == primitive.NilObjectID {
+	if tgt.FieldByName("ID").Interface().(primitive.ObjectID) == primitive.NilObjectID {
 		return nil, ErrorIdBlank
 	}
 
-	_, err := c.collection.InsertOne(ctx, tgt)
+	_, err := c.collection.InsertOne(ctx, i)
 	if err != nil {
 		return nil, ErrorInsertFailed
 	}
 
-	return c.GetItem(ctx, "id", tgt.FieldByName("Id").Interface().(primitive.ObjectID).Hex())
+	return c.GetItem(ctx, "id", tgt.FieldByName("ID").Interface().(primitive.ObjectID).Hex())
 }
 
 //
 func (c *DatabaseCollection) ItemExists(ctx context.Context, id primitive.ObjectID) bool {
 	filter := bson.D{primitive.E{Key: "_id", Value: id}}
 
-	err := c.collection.FindOne(ctx, filter)
-	return err == nil
+	result := c.collection.FindOne(ctx, filter)
+	return result.Err() == nil
 }
 
 //
 func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (resp interface{}, err error) {
 	var filter primitive.D
+
 	switch by {
 	case "_id", "id":
 		objID, _ := primitive.ObjectIDFromHex(value)
-		filter = bson.D{{Key: by, Value: objID}}
+		filter = bson.D{{Key: "_id", Value: objID}}
 	default:
 		filter = bson.D{primitive.E{Key: by, Value: value}}
 	}
 
-	err = c.collection.FindOne(ctx, filter).Decode(&resp)
-	if err != nil {
+	item := c.collection.FindOne(ctx, filter)
+	if item.Err() != nil {
 		return nil, ErrorGetFailed
 	}
 
-	return resp, nil
+	return item, nil
 }
 
 //
