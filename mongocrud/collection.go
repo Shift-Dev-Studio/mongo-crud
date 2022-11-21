@@ -40,7 +40,7 @@ type mongoCollection interface {
 }
 
 //
-func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (interface{}, error) {
+func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (*mongo.SingleResult, error) {
 	rv := reflect.ValueOf(i)
 
 	if rv.Kind() != reflect.Ptr {
@@ -81,7 +81,7 @@ func (c *DatabaseCollection) ItemExists(ctx context.Context, by, value string) b
 }
 
 //
-func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (resp interface{}, err error) {
+func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (*mongo.SingleResult, error) {
 	var filter primitive.D
 
 	switch by {
@@ -101,7 +101,7 @@ func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (res
 }
 
 //
-func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (interface{}, error) {
+func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (*mongo.SingleResult, error) {
 	rv := reflect.ValueOf(i)
 
 	if rv.Kind() != reflect.Ptr {
