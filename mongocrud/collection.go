@@ -65,8 +65,16 @@ func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (interf
 }
 
 //
-func (c *DatabaseCollection) ItemExists(ctx context.Context, id primitive.ObjectID) bool {
-	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+func (c *DatabaseCollection) ItemExists(ctx context.Context, by, value string) bool {
+	var filter primitive.D
+
+	switch by {
+	case "_id", "id":
+		objID, _ := primitive.ObjectIDFromHex(value)
+		filter = bson.D{{Key: "_id", Value: objID}}
+	default:
+		filter = bson.D{primitive.E{Key: by, Value: value}}
+	}
 
 	result := c.collection.FindOne(ctx, filter)
 	return result.Err() == nil
