@@ -1,4 +1,4 @@
-module mongo-crud
+module github.com/Shift-Dev-Studio/mongo-crud
 
 go 1.18
 
