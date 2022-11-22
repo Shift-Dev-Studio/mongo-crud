@@ -76,21 +76,6 @@ func NewStorage(c *DatabaseConfiguration, l *zap.Logger) (*DatabaseClient, error
 	// MongoDB Database init
 	resp.Database = resp.Instance.Database(c.DatabaseName)
 
-	// MongoDB Collections init
-	collectionStrings, err := resp.Database.ListCollectionNames(ctx, bson.M{})
-	if err != nil {
-		resp.logger.Warn("unable to get collection names")
-	}
-
-	for _, collection := range collectionStrings {
-		temp := resp.Database.Collection(collection)
-
-		resp.Collections = append(resp.Collections, &DatabaseCollection{
-			name:       collection,
-			collection: temp,
-		})
-	}
-
 	return resp, nil
 }
 
@@ -110,14 +95,35 @@ func (s DatabaseClient) Ping() {
 	}
 }
 
-// ListCollections returns a slice of collections of the configured database
-func (s DatabaseClient) ListCollections() []string {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+// AddCollections appends to the current database collections (allows for mock collections to be added)
+func (c *DatabaseClient) AddCollections(ctx context.Context, cols []*DatabaseCollection) {
+	for i := range cols {
+		c.Collections = append(c.Collections, cols[i])
+	}
+}
 
-	collections, err := s.Database.ListCollectionNames(ctx, bson.M{})
+// MongoCollectionsToDatabaseCollections converts the Mongo DB collections present in the database to the local
+// database collection for use in program
+func (c *DatabaseClient) MongoCollectionsToDatabaseCollections(ctx context.Context) (resp []*DatabaseCollection) {
+	collectionStrings := c.ListCollections(ctx)
+
+	for _, collection := range collectionStrings {
+		temp := c.Database.Collection(collection)
+
+		resp = append(resp, &DatabaseCollection{
+			name:       collection,
+			collection: temp,
+		})
+	}
+
+	return resp
+}
+
+// ListCollections returns a slice of collections of the configured database
+func (c DatabaseClient) ListCollections(ctx context.Context) []string {
+	collections, err := c.Database.ListCollectionNames(ctx, bson.M{})
 	if err != nil {
-		s.logger.Warn("get collections failed",
+		c.logger.Warn("get collections failed",
 			zap.String("func", "ListCollections"),
 			zap.Error(err),
 		)
