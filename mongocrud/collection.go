@@ -113,11 +113,11 @@ func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (*mo
 		return nil, ErrorValueNotStruct
 	}
 
-	if tgt.FieldByName("Id").Interface().(primitive.ObjectID) == primitive.NilObjectID {
+	if tgt.FieldByName("ID").Interface().(primitive.ObjectID) == primitive.NilObjectID {
 		return nil, ErrorIdBlank
 	}
 
-	id := tgt.FieldByName("Id").Interface().(primitive.ObjectID)
+	id := tgt.FieldByName("ID").Interface().(primitive.ObjectID)
 
 	filter := bson.D{{Key: "_id", Value: id}}
 
@@ -126,7 +126,7 @@ func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (*mo
 		return nil, ErrorUpdateFailed
 	}
 
-	return c.GetItem(ctx, "id", tgt.FieldByName("Id").Interface().(primitive.ObjectID).Hex())
+	return c.GetItem(ctx, "id", tgt.FieldByName("ID").Interface().(primitive.ObjectID).Hex())
 }
 
 //
