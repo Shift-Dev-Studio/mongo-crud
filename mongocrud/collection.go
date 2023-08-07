@@ -139,6 +139,9 @@ func (c *DatabaseCollection) DeleteItem(id primitive.ObjectID) error {
 	return nil
 }
 
-func (c *DatabaseCollection) MongoCollectionType() *mongoCollection {
-	return &c.collection
+func (c *DatabaseCollection) MongoCollectionType() *mongo.Collection {
+	t := reflect.TypeOf(c.collection)
+	val := reflect.New(t)
+
+	return val.Interface().(*mongo.Collection)
 }
