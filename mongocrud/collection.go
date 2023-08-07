@@ -39,7 +39,6 @@ type mongoCollection interface {
 	DeleteOne(context.Context, interface{}, ...*options.DeleteOptions) (*mongo.DeleteResult, error)
 }
 
-//
 func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (*mongo.SingleResult, error) {
 	rv := reflect.ValueOf(i)
 
@@ -64,7 +63,6 @@ func (c *DatabaseCollection) NewItem(ctx context.Context, i interface{}) (*mongo
 	return c.GetItem(ctx, "id", tgt.FieldByName("ID").Interface().(primitive.ObjectID).Hex())
 }
 
-//
 func (c *DatabaseCollection) ItemExists(ctx context.Context, by, value string) bool {
 	var filter primitive.D
 
@@ -80,7 +78,6 @@ func (c *DatabaseCollection) ItemExists(ctx context.Context, by, value string) b
 	return result.Err() == nil
 }
 
-//
 func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (*mongo.SingleResult, error) {
 	var filter primitive.D
 
@@ -100,7 +97,6 @@ func (c *DatabaseCollection) GetItem(ctx context.Context, by, value string) (*mo
 	return item, nil
 }
 
-//
 func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (*mongo.SingleResult, error) {
 	rv := reflect.ValueOf(i)
 
@@ -129,7 +125,6 @@ func (c *DatabaseCollection) UpdateItem(ctx context.Context, i interface{}) (*mo
 	return c.GetItem(ctx, "id", tgt.FieldByName("ID").Interface().(primitive.ObjectID).Hex())
 }
 
-//
 func (c *DatabaseCollection) DeleteItem(id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -142,4 +137,8 @@ func (c *DatabaseCollection) DeleteItem(id primitive.ObjectID) error {
 	}
 
 	return nil
+}
+
+func (c *DatabaseCollection) MongoCollectionType() *mongoCollection {
+	return &c.collection
 }
